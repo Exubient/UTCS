@@ -1,4 +1,4 @@
-public class first {
+Zublic class first {
 public static void main(String[] args) {
 
 

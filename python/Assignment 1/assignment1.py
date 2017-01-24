@@ -59,9 +59,7 @@ def fac(n):
     else:		
         return n * fac(n-1)
 
-
-cache={} 
-"""fibo cache for the problem"""
+cache={} #fibo cache for the problem
 
 def linear_fib(n):
     """Compute fib(n) in O(n) time using memoization.
