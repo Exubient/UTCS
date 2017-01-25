@@ -25,9 +25,10 @@ def load_dna(filename):
     bases at a time) and yield the bases.
 
     """
-
-    return filename.replace(" ", "")
-
+    first_replace = filename.replace(" ", "")
+    final_replace = first_replace.replace("\n", "")
+    for index in list(final_replace):
+        yield index
 
 
 def complement_dna(strand):
@@ -52,8 +53,17 @@ def complement_dna(strand):
     answer using a single generator expression.
 
     """
+    iterable = iter(strand)
 
-    raise NotImplementedError
+    for index in iterable:
+        if index == "A":
+            yield "T"
+        elif index == "T":
+            yield "A"
+        elif index == "G":
+            yield "C"
+        elif index == "C":
+            yield "G"
 
 
 def save_dna(strand, filename):
@@ -67,4 +77,5 @@ def save_dna(strand, filename):
     whole strand in memory at any point.
     """
     file_object = open(filename, 'w')
-
+    file_object.write(str(strand))
+        # close(filename)
