@@ -23,11 +23,7 @@
 //4. Build and run the app, and verify the output is correct.
 //
 //
-
-
-
 import Foundation
-
 
 func randomValueBetween(min:UInt32, max:UInt32) -> UInt32 {
     var randomValue:UInt32 = min + arc4random_uniform(UInt32(max - min + 1))
@@ -50,7 +46,6 @@ func main() {
     print(car1.description())
     print(car2.description())
     print(car3.description())
-    
     
     let largest = max(car1.get_speed(), car2.get_speed(), car3.get_speed())
 

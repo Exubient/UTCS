@@ -5,9 +5,6 @@
 //  Created by Hyun Joong Kim on 1/23/17.
 //  Copyright © 2017 Hyun Joong Kim. All rights reserved.
 //
-
-
-
 import Foundation
 
 class Automobile {
@@ -84,30 +81,4 @@ class Automobile {
         let result4 = ", Speed: " + String(self._speed)
         return result1 + result2 + result3 + result4
     }
-    
-    
-    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

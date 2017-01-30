@@ -6,6 +6,7 @@ DNA strand is very long (3 billion bases) so you cannot (or at least
 should not) load it all into memory at once.
 
 """
+import re
 
 
 def load_dna(filename):
@@ -25,14 +26,16 @@ def load_dna(filename):
     bases at a time) and yield the bases.
 
     """
-    with open(filename) as f:
-        lines = f.readlines()
-        real = ''.join(lines)
-        no_space = real.replace(" ", "")
-        no_new_lines = no_space.replace("\n", "")
-    f.close()
 
-    return no_new_lines
+    # line = line.replace(" ", "")
+    # line = line.replace("\n", "")
+    # line = line.replace("\t", "")
+    with open(filename, "r", encoding="utf-8") as f:
+        line = f.read(100)
+    expression = re.compile('[^A-Z]')
+    line = re.sub(expression, '', line)
+
+    return list(line)
     # final_replace = first_replace.replace("\n", "")
     # for index in list(final_replace):
     #     ls.append(index)
@@ -58,11 +61,8 @@ def complement_dna(strand):
 
     Grading: 80% for correct answer, 100% for nice clean *declarative*
     answer using a single generator expression.
-
     """
-    iterable = iter(strand)
-
-    for index in iterable:
+    for index in strand:
         if index == "A":
             yield "T"
         elif index == "T":
@@ -85,6 +85,6 @@ def save_dna(strand, filename):
     Remember the input may be extremely long and you should store the
     whole strand in memory at any point.
     """
-    file_object = open(filename, 'w')
-    file_object.write(str(strand))	
-    file_object.close()
+    with open(filename, "w", encoding="utf-8") as file_object:
+        file_object.writelines(strand)
+
