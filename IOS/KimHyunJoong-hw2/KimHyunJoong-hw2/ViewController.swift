@@ -14,38 +14,36 @@ class ViewController: UIViewController{
     @IBOutlet weak var _city: UITextField!
     @IBOutlet weak var _button: UIButton!
     @IBOutlet weak var _message: UILabel!
-
     
     @IBAction func button_tap(_ sender: Any) {
         if _name.text != "" && _city.text != ""{
-            _message.text = _name.text! + _city.text!
+            _message.text = _name.text! + "  " + _city.text!
         }
         else{
-            _message.text = "need to write both"
+            _message.text = "You must enter a value for *both* name and city!!"
         }
     }
     
-    
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
 
+        //background color
+        _view.backgroundColor = UIColor.gray
+        _button.backgroundColor = UIColor.orange
+        _button.tintColor = UIColor.blue
+        
+        //no auto-fill
         _name.autocorrectionType = UITextAutocorrectionType.no
         _city.autocorrectionType = UITextAutocorrectionType.no
-        _view.backgroundColor = UIColor.gray
-        
-//        let tapGesture = UITapGestureRecognizer(target: self, action: "tap:")
-//        view.addGestureRecognizer(tapGesture)
         
         //tapGestureUI
         let tap = UITapGestureRecognizer(target: self, action: #selector(self.func_tap))
         self.view.addGestureRecognizer(tap)
-        
     }
     
     func func_tap(gesture: UITapGestureRecognizer) {
         _name.resignFirstResponder()
-        _name.resignFirstResponder()
+        _city.resignFirstResponder()
         
     }
 
