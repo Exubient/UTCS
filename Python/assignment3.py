@@ -16,8 +16,10 @@ class Menu(object):
 
     def __init__(self):
         # TODO: Implement
-        raise NotImplementedError
-    
+        self.drink_tax = 0.18
+        self.food_tax = 0.10
+        self.item_set = set()
+
     def add_item(self, item):
         """Add an item to this menu and set it's menu attribute to this menu.
 
@@ -27,11 +29,18 @@ class Menu(object):
         Return: True if the item was added, and False it was not (because it had already been assigned a menu).
         """
         # TODO: Implement
-        raise NotImplementedError
+        if item.menu is None:
+            self.item_set.add(item)
+            item.menu = self
+            return True
+        else:
+            return False    
 
     # TODO: Add a read-only property named items that returns a COPY
     # of the set of items in this menu
-
+    def items(self):
+        return_set = self.item_set.copy() 
+        return return_set 
 
 
 class Order(object):
@@ -41,6 +50,8 @@ class Order(object):
     the whole order.
 
     """
+    def __init__(self):
+        self.item_list = []
 
     def add_item(self, item):
         """Add an item to this order.
@@ -53,7 +64,18 @@ class Order(object):
 
         """
         # TODO: Implement
-        raise NotImplementedError
+        if item.menu is not None:
+            if len(self.item_list) == 0:
+                self.item_list.append(item)
+                return True
+            else:
+                if item.menu == self.item_list[0].menu:
+                    self.item_list.append(item)
+                    return True
+                else:
+                    return False
+        else:
+            return False
 
     def price_plus_tax(self):
         """A function that returns the sum of all the item prices
@@ -61,8 +83,11 @@ class Order(object):
 
         """
         # TODO: Implement
-        raise NotImplementedError
-    
+        sum_price = 0
+        for index in self.item_list:
+            sum_price += index.price_plus_tax
+        return sum_price
+
     def price_plus_tax_and_tip(self, amount):
         """A method returns the sum of all the item prices with
         tax and a specified tip.
@@ -70,10 +95,11 @@ class Order(object):
         amount is given as a proportion of the cost including tax.
 
         """
-        # TODO: Implement (Make sure not to duplicate any code in price_plus_tax).
-        raise NotImplementedError
+        # TODO: Implement (Make sure not to duplicate any code in
+        # price_plus_tax).
+        return self.price_plus_tax * (1 + amount)
 
-    
+
 class GroupOrder(Order):
     """An order than is made by a large ground and forces the tip to be at least
     20% (0.20).
@@ -81,13 +107,13 @@ class GroupOrder(Order):
     If a price with a tip less than 20% is requested return a price with a 20%
     tip instead.
     """
-    
+
     # TODO: Override price_plus_tax_and_tip to force a tip of at least
     # 20% (0.20). Do not duplicate any code (incl. the implementation of
     # price_plus_tax_and_tip from Order)
     pass
 
-    
+
 class Item(object):
     """An item that can be bought.
 
@@ -99,7 +125,9 @@ class Item(object):
 
     def __init__(self, name, price):
         # TODO: Implement
-        raise NotImplementedError
+        self.name = name
+        self.price = price
+        self.menu = None
 
     # TODO: Add a property (not just an attribute) called "menu" that
     # returns the menu this item is part of. It should only be
@@ -115,7 +143,7 @@ class Item(object):
 
         """
         # TODO: Implement
-        raise NotImplementedError
+        return self.price*(1+self._applicable_tax)
 
     def _applicable_tax(self):
         """Return the amount of tax applicable to this item as a proportion
@@ -123,18 +151,21 @@ class Item(object):
         """
         # This is an abstract method. It should not be implemented in
         # this class.
-        raise NotImplementedError
+        pass
 
 
 # DO NOT change the classes below. Your code in Item should work with
 # these implementation as is.
-     
+
 class Food(Item):
     """An Item subclass which uses the food tax rate."""
+
     def _applicable_tax(self):
         return self.menu.food_tax
 
+
 class Drink(Item):
     """An Item subclass which uses the drink tax rate."""
+
     def _applicable_tax(self):
         return self.menu.drink_tax

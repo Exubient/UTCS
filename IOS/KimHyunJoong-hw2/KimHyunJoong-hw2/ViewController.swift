@@ -44,7 +44,6 @@ class ViewController: UIViewController{
     func func_tap(gesture: UITapGestureRecognizer) {
         _name.resignFirstResponder()
         _city.resignFirstResponder()
-        
     }
 
     override func didReceiveMemoryWarning() {
