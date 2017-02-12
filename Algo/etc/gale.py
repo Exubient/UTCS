@@ -40,4 +40,4 @@ def stable(rankings, A, B):
                         partners[a] = (rankings[(a, a_n + 1)], a_n + 1)
                     else:
                         is_paired = True
-    return (sorted (a, b) for (a, (b, n)) in partners.items())
+    return (sorted (a, b) for (a, (b, n)) in partners.items()

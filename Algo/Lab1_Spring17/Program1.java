@@ -27,7 +27,6 @@ public class Program1 extends AbstractProgram1 {
      */
 
     public boolean isStableMatching(Matching marriage) {
-
         for(int worker = 0; worker < marriage.getWorkerCount(); worker++){
             //current match for the iteration of worker
             int jobMatch = marriage.getWorkerMatching().get(worker); 
@@ -57,9 +56,55 @@ public class Program1 extends AbstractProgram1 {
      */
     public Matching stableHiringGaleShapley(Matching marriage) {
         /* TODO implement this function */
+        Integer worker, job, prefIndex, currentWorker, current_pref, new_pref;
+ 
+        Queue<Integer> ls = new LinkedList<Integer>();
+        ArrayList<Integer> index_ls = new ArrayList<Integer>();
+        ArrayList<Integer> worker_match = new ArrayList<Integer>();
+        ArrayList<Integer> job_match = new ArrayList<Integer>();
 
+        //set the arrays need to compute the Gale Shapley algorithm
+        for(Integer worker_iteration = 0; worker_iteration < marriage.getWorkerCount(); worker_iteration++){
+            worker_match.add(-1);
+            job_match.add(-1);
+            ls.add(worker_iteration);
+            index_ls.add(0);
+        }
 
+        //for the iteration created above
+        while (ls.size() != 0 ){
+            worker = ls.poll();
+            prefIndex = index_ls.get(worker);
+            job = marriage.getWorkerPreference().get(worker).get(prefIndex);
+
+            //for workers that are not matched
+            //match with no conditions
+            if(job_match.get(job) == -1){
+                worker_match.set(worker, job);
+                job_match.set(job, worker);
+                index_ls.set(worker, prefIndex+1);
+            }
+            //get the preference of current and new to compare
+            //check for conditions 
+            else{
+                currentWorker = job_match.get(job);
+                current_pref = marriage.getJobPreference().get(job).indexOf(currentWorker);
+                new_pref = marriage.getJobPreference().get(job).indexOf(worker);
+                //match them according to preference
+                if(new_pref < current_pref){
+                    worker_match.set(worker, job);
+                    job_match.set(job, worker);
+                    worker_match.set(currentWorker, -1);
+                    ls.add(currentWorker);   
+                }
+                //not a match. send the worker back to the Queue
+                else{
+                    ls.add(worker);
+                    index_ls.set(worker, prefIndex+1);
+                }
+            }
+        }
+        marriage.setWorkerMatching(worker_match);
+        return marriage;
+    }
 }
-
-
-
