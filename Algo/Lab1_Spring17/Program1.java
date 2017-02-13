@@ -19,6 +19,8 @@ import java.util.Queue;
  * solution, as you see fit. We will use ALL of your additional files when
  * grading your solution.
  */
+
+
 public class Program1 extends AbstractProgram1 {
     /**
      * Determines whether a candidate Matching represents a solution to the
@@ -46,6 +48,10 @@ public class Program1 extends AbstractProgram1 {
         return true;
     }
 
+    // public Integer print_state(Matching marriage){
+    //     marriage.get
+    //     System.out.printf("current worker is : %s", )
+    // }
 
     /**
      * Determines a solution to the Stable Marriage problem from the given input
@@ -57,11 +63,13 @@ public class Program1 extends AbstractProgram1 {
     public Matching stableHiringGaleShapley(Matching marriage) {
         /* TODO implement this function */
         Integer worker, job, prefIndex, currentWorker, current_pref, new_pref;
+
  
         Queue<Integer> ls = new LinkedList<Integer>();
         ArrayList<Integer> index_ls = new ArrayList<Integer>();
         ArrayList<Integer> worker_match = new ArrayList<Integer>();
         ArrayList<Integer> job_match = new ArrayList<Integer>();
+        ArrayList<Integer> tmp = new ArrayList<Integer>();
 
         //set the arrays need to compute the Gale Shapley algorithm
         for(Integer worker_iteration = 0; worker_iteration < marriage.getWorkerCount(); worker_iteration++){
@@ -74,9 +82,18 @@ public class Program1 extends AbstractProgram1 {
         //for the iteration created above
         while (ls.size() != 0 ){
             worker = ls.poll();
+            System.out.printf("current worker is : %d\n", worker);
             prefIndex = index_ls.get(worker);
+            System.out.printf("prefIndex is at state 1: %d\n", prefIndex);
             job = marriage.getWorkerPreference().get(worker).get(prefIndex);
 
+            tmp = marriage.getJobPreference().get(job);
+            Integer[] arr = tmp.toArray(new Integer[tmp.size()]);
+            System.out.println(arr[0]);
+            System.out.println(arr[1]);
+            System.out.println(arr[2]);
+            System.out.println(arr[3]);
+            
             //for workers that are not matched
             //match with no conditions
             if(job_match.get(job) == -1){
@@ -84,23 +101,32 @@ public class Program1 extends AbstractProgram1 {
                 job_match.set(job, worker);
                 index_ls.set(worker, prefIndex+1);
             }
+
             //get the preference of current and new to compare
             //check for conditions 
             else{
                 currentWorker = job_match.get(job);
                 current_pref = marriage.getJobPreference().get(job).indexOf(currentWorker);
+                // System.out.printf("current_pref is : %d\n", current_pref);
                 new_pref = marriage.getJobPreference().get(job).indexOf(worker);
+                // System.out.printf("new_pref is : %d\n", new_pref);
+
                 //match them according to preference
+
+
+
                 if(new_pref < current_pref){
                     worker_match.set(worker, job);
                     job_match.set(job, worker);
                     worker_match.set(currentWorker, -1);
-                    ls.add(currentWorker);   
+                    ls.add(currentWorker);
+   
                 }
                 //not a match. send the worker back to the Queue
                 else{
                     ls.add(worker);
                     index_ls.set(worker, prefIndex+1);
+
                 }
             }
         }
