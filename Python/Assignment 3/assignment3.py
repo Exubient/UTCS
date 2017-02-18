@@ -89,7 +89,6 @@ class Order(object):
         # price_plus_tax).
         return self.price_plus_tax() * (1 + amount)
 
-
 class GroupOrder(Order):
     """An order than is made by a large ground and forces the tip to be at least
     20% (0.20).
