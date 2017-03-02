@@ -319,8 +319,7 @@ def betterEvaluationFunction(currentGameState):
 
     DESCRIPTION: <write something here so we know what you did>
   """
-  "*** YOUR CODE HERE ***"
-  # util.raiseNotDefined()
+
 
   basicScore = currentGameState.getScore()   
   newPos = currentGameState.getPacmanPosition() 
@@ -358,5 +357,4 @@ class ContestAgent(MultiAgentSearchAgent):
           Ghosts don't behave randomly anymore, but they aren't perfect either -- they'll usually
           just make a beeline straight towards Pacman (or away from him if they're scared!)
         """
-        "*** YOUR CODE HERE ***"
         util.raiseNotDefined()

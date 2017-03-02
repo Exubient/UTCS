@@ -75,4 +75,117 @@ Links:
 * https://docs.python.org/3.5/reference/expressions.html#yieldexpr
 
 """
+from binarysearchtree import Node
 
+class TreeDict(object):
+
+    def __init__(self, *arg, **kwarg):
+        self.node = Node()
+        self.update(*arg, **kwarg)
+
+    def __getitem__(self, key):
+        if key is None:
+            raise KeyError("None cannot be used as a key")
+        try:
+            return self.node.lookup(key).value
+        except ValueError:
+            raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        if key is None:
+            raise KeyError("None cannot be used as a key")
+        try:
+            return self.node.insert(key, value)
+        except ValueError:
+            raise ValueError()
+
+    def __contains__(self, key):
+        if key is None:
+            raise KeyError("None cannot be used as a key")
+        try:
+            if self.node.lookup(key).value != None:
+                return True
+        except ValueError:
+            raise ValueError()
+
+    def update(self, *arg, **kwarg):
+        for key, value in kwarg.items():
+            if key is None:
+                raise KeyError("None cannot be used as a key")
+            else:
+                self.node.insert(key, value)
+        if len(arg) != 0:
+            if type(arg[0]).__name__ == "TreeDict":
+                for node in arg[0]:
+                    self.node.insert(node, arg[0][node])
+            elif isinstance(arg[0], dict):
+                for key, value in arg[0].items():
+                    if key is None:
+                        raise KeyError("None cannot be used as a key")
+                    else:
+                        self.node.insert(key, value)
+            elif hasattr(arg[0], '__iter__'):
+                for iter_element in arg[0]:
+                    if len(iter_element) != 2:
+                        raise ValueError(iter_element)
+                    else:
+                        if iter_element[0] == None:
+                            raise ValueError(iter_element)
+                        else:
+                            self.node.insert(iter_element[0], iter_element[1])
+            else:
+                raise ValueError()
+
+    def get(self, key, default=None):
+        if key is None:
+            raise KeyError("None cannot be used as a key")
+        try:
+            return self.node.lookup(key).value
+        except ValueError:
+            return default
+
+    def __delitem__(self, key):
+        if key is None:
+            raise KeyError("None cannot be used as a key")
+        try:
+            self.node.dnodete(key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def num_subtree_Nodes(self, root):
+        if root is None:
+            return 0
+        else:
+            return 1 + self.num_subtree_Nodes(root.left) + self.num_subtree_Nodes(root.right)
+
+    def __len__(self):
+        if self.node.key is None:
+            return 0
+        else:
+            left_root = self.node.left
+            right_root = self.node.right
+            return self.num_subtree_Nodes(left_root) + self.num_subtree_Nodes(right_root) + 1
+
+    def inOrder(self, root):
+        if root != None:
+            yield from self.inOrder(root.left)
+            yield (root.key, root.value)
+            yield from self.inOrder(root.right)
+
+    def __iter__(self):
+        if self.node.key is None:
+            return iter(()) 
+        else:
+            return (item[0] for item in self.inOrder(self.node))
+
+    def items(self):
+        if self.node.key is None:
+            return iter({}) 
+        else:
+            return (item for item in self.inOrder(self.node))
+
+    def values(self):
+        if self.node.key == None:
+            return iter(())
+        else:
+            return (item[1] for item in self.inOrder(self.node))
