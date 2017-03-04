@@ -11,12 +11,12 @@ import java.util.ArrayList;
 import javafx.util.Pair;
 import java.util.List;
 import java.util.Map;
-// import java.util.regex.Matcher;
-// import java.util.regex.Pattern;
+
 
 public class Graph {
     private List<String> _unlocked = new ArrayList<String>();
     private Map<String,List<String>> Adjacency_List = new HashMap<String, List<String>>(); 
+    private Map<String,List<String>> Adjacency_List_bool = new HashMap<String, List<String>>(); 
 
     public Graph(String unlocked, String keys) {
         read(unlocked);
@@ -24,7 +24,9 @@ public class Graph {
         
         this.Adjacency_List = Adjacency_List;
         this._unlocked = _unlocked;
-
+        for(String name: _unlocked){
+            System.out.println(name);
+        }
         //output the graph
         for (String name: Adjacency_List.keySet()){
             String value = Adjacency_List.get(name).toString();  
