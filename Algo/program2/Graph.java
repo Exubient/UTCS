@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.ArrayList;
 import javafx.util.Pair;
 import java.util.List;
 import java.util.Map;
@@ -14,17 +15,21 @@ import java.util.Map;
 // import java.util.regex.Pattern;
 
 public class Graph {
-    private String _unlocked;
-    private  Map<String,List<String>> Adjacency_List = new HashMap<String, List<String>>(); 
-    /*
-     * Creates a graph to represent the neighborhood, where unlocked is the file name for the unlocked houses
-     * and keys is the file name for which houses have which keys.
-     */
+    private List<String> _unlocked = new ArrayList<String>();
+    private Map<String,List<String>> Adjacency_List = new HashMap<String, List<String>>(); 
 
     public Graph(String unlocked, String keys) {
         read(unlocked);
         read(keys);
+        
+        this.Adjacency_List = Adjacency_List;
+        this._unlocked = _unlocked;
 
+        //output the graph
+        for (String name: Adjacency_List.keySet()){
+            String value = Adjacency_List.get(name).toString();  
+            System.out.println(name + " " + value);  
+        } 
     }
 
     public void read(String filename){
@@ -33,7 +38,6 @@ public class Graph {
         FileReader fr = null;
         String sCurrentLine;
 
-
         try {
             fr = new FileReader(filename);
             br = new BufferedReader(fr);
@@ -41,35 +45,26 @@ public class Graph {
             
             if (filename == "unlocked.txt"){
                 while ((sCurrentLine = br.readLine()) != null) {
-                    _unlocked = sCurrentLine;
+                    _unlocked.add(sCurrentLine);
                 }
             }
 
             else { 
                 while ((sCurrentLine = br.readLine()) != null) {
-
+                    List<String> tmp_list = new ArrayList<String>();
                     String[] parts = sCurrentLine.split(":");
-                    System.out.println("you have added ___" + parts[0] + "____to the list");
-                    Adjacency_List.put(parts[0], new LinkedList<String>());
-
                     if (parts.length > 1) {
-                        //이거는 통으로 출력
-                        System.out.println("you have added <LinkedList> ___" + parts[1] + "____to the edges");
-                        // 여기다 저장 어떻게하냐->>>Adjacency_List.put(parts[0], new LinkedList<String>());
-
-
-                        //이거는 하나 하나씩 출력
-                        // String[] edges = sCurrentLine.split(",");
-                        // for(String word:parts[1].substring(1).split(", ")){  
-                        //     System.out.println("you have added _____" + word + "_____ to the edge"); 
-                        // }
+                        String[] edges = sCurrentLine.split(",");
+                        for(String word:parts[1].substring(1).split(", ")){  
+                            tmp_list.add(word); 
+                        }
                     }
+                    Adjacency_List.put(parts[0], new ArrayList<String>(tmp_list));
+                }
             }
-        }
 
         } catch (IOException e) {
             e.printStackTrace();
-
         } finally {
             try {
                 if (br != null)
@@ -81,26 +76,16 @@ public class Graph {
             }
         }
     }
-
-
-    // public void setEdge(String source, String destination)
-    // {
-    //     if (source > Adjacency_List.size() || destination > Adjacency_List.size()){
-    //         System.out.println("the vertex entered in not present ");
-    //         return;
-    //     }
-    //     List<Integer> slist = Adjacency_List.get(source);
-    //     slist.add(destination);
-    //     List<Integer> dlist = Adjacency_List.get(destination);
-    //     dlist.add(source);
-    // }
-
     /*
      * This method should return true if the Graph contains the vertex described by the input String.
      */
     public boolean containsVertex(String node) {
-        //TODO: Implement function
-        return false;
+        if(Adjacency_List.containsKey(node)){
+            return true;
+        }
+        else{
+            return false;
+        }
     }
 
     /*
@@ -108,8 +93,12 @@ public class Graph {
      * represented by start String and end String.
      */
     public boolean containsEdge(String start, String end) {
-        //TODO: Implement function
-        return false;
+        for (String key: Adjacency_List.keySet()){
+            if(Adjacency_List.containsKey(start) && Adjacency_List.get(start).contains(end)){ 
+                return true;
+                }
+            } 
+            return false;
     }
 
     /*
@@ -118,6 +107,9 @@ public class Graph {
      */
     public boolean isLocked(String house) {
         //TODO: Implement function
-        return false;
+        if (_unlocked.contains(house)){
+            return false;
+        }
+        return true;
     }
 }
