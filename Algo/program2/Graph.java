@@ -16,17 +16,19 @@ import java.util.Map;
 public class Graph {
     private List<String> _unlocked = new ArrayList<String>();
     private Map<String,List<String>> Adjacency_List = new HashMap<String, List<String>>(); 
-    private Map<String,List<String>> Adjacency_List_bool = new HashMap<String, List<String>>(); 
+    // private Map<String,List<String>> Adjacency_List_bool = new HashMap<String, List<String>>(); 
 
     public Graph(String unlocked, String keys) {
-        read(unlocked);
-        read(keys);
+        read_txt(unlocked);
+        read_txt(keys);
         
         this.Adjacency_List = Adjacency_List;
         this._unlocked = _unlocked;
+
         for(String name: _unlocked){
             System.out.println(name);
         }
+        
         //output the graph
         for (String name: Adjacency_List.keySet()){
             String value = Adjacency_List.get(name).toString();  
@@ -34,7 +36,7 @@ public class Graph {
         } 
     }
 
-    public void read(String filename){
+    public void read_txt(String filename){
 
         BufferedReader br = null;
         FileReader fr = null;
@@ -52,6 +54,7 @@ public class Graph {
             }
 
             else { 
+                //Adjacent List로 txt data parsing
                 while ((sCurrentLine = br.readLine()) != null) {
                     List<String> tmp_list = new ArrayList<String>();
                     String[] parts = sCurrentLine.split(":");
@@ -64,7 +67,7 @@ public class Graph {
                     Adjacency_List.put(parts[0], new ArrayList<String>(tmp_list));
                 }
             }
-
+            // 그냥 에러 catch..not important
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

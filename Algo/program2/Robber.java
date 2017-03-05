@@ -36,7 +36,7 @@ public class Robber {
 
     public static boolean graphDFSByStack(Graph neighborhood) {
 
-                // declare Graph as class Node
+        // declare Graph as class Node but 실패..? 어칼지 모르겠음
         Node<String> A = new Node<String>("House A");
         Node<String> B = new Node<String>("House B");
         Node<String> C = new Node<String>("House C");
@@ -46,6 +46,9 @@ public class Robber {
         //start point(one for now)
         System.out.println(A.data);
         return true;
+
+
+        //DFS인데 연결을 못하겠ㅇ
         // for(String name: neighborhood._unlocked){
         //     String source = name;    
         // }
@@ -71,12 +74,8 @@ public class Robber {
 
     public boolean canRobAllHouses(Graph neighborhood) {
 
-
-
         boolean var = graphDFSByStack(neighborhood); 
         // else return false
-
-
         // for (String name: Adjacency_List.keySet()){
         //     stack.add(neighborhood._unlocked);
         // }
