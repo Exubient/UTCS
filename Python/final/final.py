@@ -1,456 +1,327 @@
-import random
-from optparse import *
-import enum
-import re
-import urllib
-import pickle
-import logging
-import graph
-import collections
-import types
-import urllib.request
-import sys
-import string
-from pprint import pprint
+"""Final project: Random Writer than can save it's model.
 
+NOTE: This is a long file, however I strongly recommend you read the
+whole thing.
 
-line_re = re.compile(r"(?P<node_id>\d+):\s*(?P<edges>.*)$")
-edge_re = re.compile(r"\((?P<token>\"[^\"]*\"|[\d.]+),\s*(?P<probability>[\d.]+),\s*(?P<target>[\d]+)\)")
+In this project you will write a "random writer": a program that
+builds a statistical model of some data and then outputs a stream of
+data that is similar to the original but randomly generated. Here is
+how we will do it: [The idea for this assignment is from an assignment
+that Dr Calvin Lin uses for CS314H. He was nice enough to let me use
+his text to explain it.]
 
-def parse_line1(line, cache_dict):
-    line_match = line_re.match(line)
-    node_id, edge_str = line_match.group("node_id", "edges")
-    node_id = int(node_id)
-    edges = edge_re.finditer(edge_str)
-    node = graph.MarkovChainNode(node_id)  # now state is None obj
-    if not node_id in cache_dict:
-        cache_dict[node_id] = None
-    for edge_match in edges:
-        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
-        target_str =  int(target_str)
-        if token_str[0] == '"':
-            token = token_str[1:-1]
-        else:
-            token = float(token_str) if "." in token_str else int(token_str)
-        if type(token) ==  str and token.isdigit():
-             token = float(token) if "." in token_str else int(token)
-        cache_dict[target_str] = token
-    return int(node_id), node
+Imagine taking a book, such as Tom Sawyer, and determining the
+probability with which each character occurs. You'd probably find that
+spaces are the most common character, followed by the character "e",
+etc. Given these probabilities, which we will call a Level 0 analysis,
+you could randomly produce text that, while not resembling English,
+would have the property that the characters would likely occur in the
+same proportions as they do in Tom Sawyer. For example, here's what
+you might produce:
 
+  rla bsht eS ststofo hhfosdsdewno oe wee h .mr ae irii ela iad o r te
+  ut mnyto onmalysnce, ifu en c fDwn oee
 
-def parse_line2(line, nodes):
-    line_match = line_re.match(line)
-    node_id, edge_str = line_match.group("node_id", "edges")
-    node_id = int(node_id)
-    edges = edge_re.finditer(edge_str)
-    for edge_match in edges:
-        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
-        target_str =  int(target_str)
-        if token_str[0] == '"':
-            token = token_str[1:-1]
-        else:
-            token = float(token_str) if "." in token_str else int(token_str)
-        if type(token) ==  str and token.isdigit():
-            token = float(token) if "." in token_str else int(token)
+Now imagine doing a slightly more sophisticated analysis, a Level 1
+analysis, that determines the probability with which each character
+follows every other character. You would probably discover that "h"
+follows "t" more frequently than "x" does, and you would probably
+discover that a space follows a period more frequently than a comma
+does.  With this new analysis, you could use the probabilities from
+Tom Sawyer to randomly pick an initial character and then repeatedly
+choose the next character based on the previous character and the
+probabilities provided by the analysis. Your new text might look like
+the following, which looks a bit more like English than the previous
+example:
 
-        prob = float(prob_str)
-        followerNode = nodes[target_str]
-        nodes[node_id].add_next_state(followerNode,prob)
+  "Shand tucthiney m?" le ollds mind Theybooue He, he s whit Pereg
+  lenigabo Jodind alllld ashanthe ainofevids tre lin-p asto oun
+  theanthadomoere
 
+We can generalize these ideas to a Level k analysis that determines
+the probability with which each character follows every possible
+sequence of k characters. For example, a Level 5 analysis of Tom
+Sawyer would show that "r" follows "Sawye" more frequently than any
+other character. After a Level k analysis, you'd be able to produce
+random text by always choosing the next character based on the
+previous k characters -- which we will call the state -- and based on
+the probabilities produced by your analysis.
 
-def parse_lines(lines):
-    cache_dict = dict()
-    nodes = dict(parse_line1(line, cache_dict) for line in lines)
-    for key in cache_dict:
-        nodes[key].state = (cache_dict[key],)
-    for line in lines:
-        parse_line2(line, nodes)
-    return nodes
+For relatively small values of k (5-7), the randomly generated text
+begins to take on many of the characteristics of the source text.
+While it still will not produce legal English, you will be able to
+tell that it was derived from Tom Sawyer instead of Harry Potter. As
+the value of k increases, the text looks increasingly like English.
+Here are some more examples:
 
+Level 2: 
+  "Yess been." for gothin, Tome oso; ing, in to weliss of an'te cle -
+  armit.  Paper a comeasione, and smomenty, fropech hinticer, sid, a
+  was Tom, be such tied. He sis tred a youck to themen
 
-class TrainingErrorException(Exception):
-    """Create an exception TrainingError that has an attribute tokens_loaded."""
-    def __init__(self, err, tokens_loaded=0):
-        self.err = err
-        self.tokenLoaded = tokens_loaded
-    def __str__(self):
-        return self.err + ". {} tokens were loaded".format(self.tokenLoaded)
+Level 4:
+  en themself, Mr. Welshman, but him awoke, the balmy shore.  I'll
+  give him that he couple overy because in the slated snuffindeed
+  structure's kind was rath.  She said that the wound the door a fever
+  eyes that WITH him.
 
+Level 6:
+  people had eaten, leaving. Come - didn't stand it better judgment;
+  His hands and bury it again, tramped herself! She'd never would
+  be. He found her spite of anything the one was a prime feature
+  sunset, and hit upon that of the forever.
 
-class Tokenization(enum.Enum):
-    """ tokenization modes
-    word: Interpret the input as UTF-8 and split the input at any Unicode
-    white-space characters and use the strings between the white-space
-    as tokens. So "a b" would be [a, b] as would "a\nb" and "a \u00A0\nb"
-    (\u00A0 is non-breaking space).
+Level 8:
+  look-a-here - I told you before, Joe.  I've heard a pin drop.  The
+  stillness was complete, how-ever, this is awful crime, beyond the
+  village was sufficient.  He would be a good enough to get that
+  night, Tom and Becky.
 
-    character: Interpret the input as UTF-8 and use the characters as tokens.
+Level 10:
+  you understanding that they don't come around in the cave should get
+  the word "beauteous" was over-fondled, and that together" and
+  decided that he might as we used to do - it's nobby fun. I'll learn
+  you."
 
-    byte: Read the input as raw bytes and use individual bytes as the tokens.
+We can also generalize this idea to use words in place of characters
+as the "tokens" of the model. In fact we can generalize this process
+to work over any sequence of values of any type. The states are then
+short sequences of values.
 
-    none: Do not tokenize. The input must be an iterable.
-    """
-    word = 1
-    character = 2
-    byte = 3
-    none = 4
+Formally, the model we are building here is called a Markov Chain. A
+Markov chain is a directed graph where every node is a state and every
+outgoing edge from a node is a possible token to find while in that
+state. The edges have probabilities that define how likely it is to
+follow that edge. The probability of all the edges leaving a node
+should sum to 1.
 
+With this graph we can generate output by picking a random starting
+node and then picking an outgoing edge based on the probabilities,
+outputting it's associated token, and repeating the process based on
+the node at the other end of the edge.
 
+More concretely you can think of being in a state represented by a
+string "th". We would then look at the probability that each other
+letter would follow "th". "e" is likely to be very common; "x" not so
+much. If we generate the "e", we are in state "he" and we check
+probabilities based on that state.
+
+Feel free to discuss the Markov chain with one another or look it
+up. However you should not discuss how to implement it or copy an
+existing implementation.
+
+"""
+
+"""You will be turning in this assignment as a ZIP file, since you
+will need to turn in 2 different modules (final.py and graph.py).
+"""
+
+"""TODO: Create a Tokenization enum with values: word, character,
+byte, none (name them exactly this; do not capitolize). Use the
+enumeration support in the standard library. The tokenization modes
+have the following meanings:
+
+word: Interpret the input as UTF-8 and split the input at any
+  white-space characters and use the strings between the white-space
+  as tokens. So "a b" would be ["a", "b"] as would "a\n b".
+
+character: Interpret the input as UTF-8 and use the characters as
+  tokens.
+
+byte: Read the input as raw bytes and use individual bytes as the
+  tokens.
+
+none: Do not tokenize. The input must be an iterable.
+
+"""
+
+"""TODO: Create a module called 'graph' (make sure it is named exactly
+'graph') that contains class(es) and code that are used to represent
+and manipulate the Markov chain graph. It should implement the markov
+chain as an abstract concept and not have any code specific to this
+usage. Also it should use objects to represent the structure graph,
+instead of encoding relationships as some opaque set of tables. The
+API of the module is up to you.
+
+NOTE: Do not optimized your graph representation. Just represent it in
+the simplest way you can. That's how I implemented mine and it runs the
+whole test suite in 9 seconds which is plenty fast enough for our
+application.
+
+"""
+
+"""In implementing the algorithms required for this project you should
+not focus too much on performance however you should make sure your
+code can train on a large data set in a reasonable time. For instance,
+a 6MB input file on level 4 should not take more than 10
+seconds. Similarly you should be able to generate output quickly;
+5,000 tokens per second or better. These should be easy to meet.
+
+You can get some test input from http://www.gutenberg.org/ . You may
+want to use the complete works of Shakespeare:
+http://www.gutenberg.org/cache/epub/100/pg100.txt
+
+"""
 class RandomWriter(object):
-    """A Markov chain based random data generator."""
+    """A Markov chain based random data generator.
+    """
 
-    def __init__(self, level=1, tokenization=Tokenization.none):
+    def __init__(self, level, tokenization=None):
         """Initialize a random writer.
+
         Args:
           level: The context length or "level" of model to build.
           tokenization: A value from Tokenization. This specifies how
             the data should be tokenized.
+
         The value given for tokenization will affect what types of
         data are supported.
+
         """
-        self.level = level
-        self.tokenization = tokenization
-        self.model = graph.MarkovChainGraph()
+        raise NotImplementedError
 
     def generate(self):
-        """Generate tokens using the model."""
-        node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
-        while len(node.next_states) == 0:
-            node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
+        """Generate tokens using the model.
+        
+        Yield random tokens using the model. The generator should
+        continue generating output indefinitely.
 
-        while True:
-            yield node.state[-1]
-            if len(node.next_states) != 0:
-                node = node.get_next_state()
-                if node == None:
-                    node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
-                    while len(node.next_states) == 0:
-                        node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
-            else:
-                node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
-                while len(node.next_states) == 0:
-                    node = self.model.chain[random.choice([key for key in self.model.chain.keys()])]
+        It is possible for generation to get to a state that does not
+        have any outgoing edges. You should handle this by selecting a
+        new starting node at random and continuing.
 
+        """
+        raise NotImplementedError
 
     def generate_file(self, filename, amount):
         """Write a file using the model.
+
         Args:
           filename: The name of the file to write output to.
           amount: The number of tokens to write.
+
+        For character or byte tokens this should just output the
+        tokens one after another. For any other type of token a space
+        should be added between tokens. Use str to convert values to
+        strings for printing.
+
+        Do not duplicate any code from generate.
+
         Make sure to open the file in the appropriate mode.
         """
-        if type(amount == str):
-            amount = int(amount)
-        ####----------------------------------##############
-        #######this is for sys.stdout file object
-        if hasattr(filename, 'read'):
-            fi = filename
-            for ele in self.generate():
-                if self.tokenization == Tokenization.byte:
-                    fi.write(bytes(chr(ele),'utf-8'))
-                if self.tokenization == Tokenization.character:
-                    fi.write(ele)
-                elif self.tokenization == Tokenization.word:
-                    fi.write(ele+" ")
-                elif self.tokenization == Tokenization.none:
-                    ele = str(ele)
-                    fi.write(ele+" ")
-                amount -= 1
-                if amount <= 0:
-                    break
-        ####################################################
-        if self.tokenization == Tokenization.byte:
-            with open(filename, mode="wb") as fi:
-                for ele in self.generate():
-                    fi.write(bytes(chr(ele),'utf-8'))
-                    amount -= 1
-                    if amount <= 0:
-                        break
-        else:
-            with open(filename, encoding = 'utf-8', mode="w") as fi:
-                for ele in self.generate():
-                    if self.tokenization == Tokenization.character:
-                        fi.write(ele)
-                    elif self.tokenization == Tokenization.word:
-                        fi.write(ele+" ")
-                    elif self.tokenization == Tokenization.none:
-                        ele = str(ele)
-                        fi.write(ele+" ")
-                    amount -= 1
-                    if amount <= 0:
-                        break
-
-    def save_text(self, filename_or_file_object):
-        """Write the model to a text file.
-        If the model is not a word, character, or byte model then this
-        data file will not allow this model to be rebuild
-        exactly. Instead the new model will have string
-        representations instead of the original tokens. This is
-        expected.
-        Training is not supported on models loaded form text files
-        """
-
-        if hasattr(filename_or_file_object, 'read'):
-            fi = filename_or_file_object
-        else:
-            fi = open(filename_or_file_object, encoding = 'utf-8', mode="w")
-        for key in self.model.chain:
-            outputStr = str(key) + ":"
-            targetStr = ""
-            if len(self.model.chain[key].next_states) == 0:
-                fi.write(outputStr)
-                fi.write("\n")
-                continue     # skipped the ones without followers
-            for ele in self.model.chain[key].next_states:
-                if self.tokenization == Tokenization.none:
-                    state = "\""+repr(ele[0].state[-1]) + "\"" # none mode
-                elif self.tokenization == Tokenization.byte:
-                    state = "\""+repr(ele[0].state[-1]) + "\"" # none mode
-                else:
-                    state = "\""+ele[0].state[-1] + "\""    # word or charracter
-
-                prob = str(ele[1])
-                value = str(ele[0].value)
-                eleStr = "(" + ", ".join((state, prob, value)) + ")"
-                targetStr = " ".join((targetStr,eleStr))
-            outputStr += targetStr
-            fi.write(outputStr)
-            fi.write("\n")
-        fi.close()
-
-    @classmethod
-    def load_text(cls, filename_or_file_object):
-        """Load a model from a text file in the same format as used for
-        save_text.
-        Args:
-          filename_or_file_object: A filename or file object to load
-            from. You need to support both.
-        If the argument is a file object you can assume it is opened
-        in text mode.
-        This should construct a new RandomWriter instance.
-        """
-
-        if hasattr(filename_or_file_object, 'read'):
-            fi = filename_or_file_object
-        else:
-            fi = open(filename_or_file_object, encoding = 'utf-8', mode="rt")
-        lines = fi.readlines()
-        fi.close()
-        for i in range(len(lines)):
-            lines[i] = lines[i][:-1]
-        model = parse_lines(lines)
-        rw = RandomWriter()
-        rw.model.chain = model
-        return rw
+        raise NotImplementedError
 
     def save_pickle(self, filename_or_file_object):
-        """Write this model out as a Python pickle."""
+        """Write this model out as a Python pickle.
 
-        if hasattr(filename_or_file_object, 'read'):
-            fi = filename_or_file_object
-        else:
-            fi = open(filename_or_file_object, 'wb')
-        pickle.dump(self.model.chain, fi)
-        fi.close()
+        Args:
+          filename_or_file_object: A filename or file object to write
+            to. You need to support both.
+
+        If the argument is a file object you can assume it is opened
+        in binary mode.
+
+        """
+        raise NotImplementedError
 
     @classmethod
     def load_pickle(cls, filename_or_file_object):
-        """Load a Python pickle and make sure it is in fact a model."""
+        """Load a Python pickle and make sure it is in fact a model.
 
-        if hasattr(filename_or_file_object, 'read'):
-            fi = filename_or_file_object
-        else:
-            fi = open(filename_or_file_object, 'rb')
-        rw = RandomWriter()
-        rw.model.chain = pickle.load(fi)
-        fi.close()
-        return rw
+        Args:
+          filename_or_file_object: A filename or file object to load
+            from. You need to support both.
+        Return:
+          A new instance of RandomWriter which contains the loaded
+          data.
 
-    @classmethod
-    def load(cls, filename):
-        """Load a model from a file that may be a pickle or a text file.
-        This should not duplicate any code in the other load methods.
+        If the argument is a file object you can assume it is opened
+        in binary mode.
+
         """
-
-        try:
-            return RandomWriter.load_pickle(filename)
-        except pickle.UnpicklingError:
-            logging.warning("It is not a pickle object, will load it as a normal file")
-            return RandomWriter.load_text(filename)
+        raise NotImplementedError
 
     def train_url(self, url):
         """Compute the probabilities based on the data downloaded from url.
+
+        Args:
+          url: The URL to download. Support any URL supported by
+            urllib.
+
         This method is only supported if the tokenization mode is not
         none.
-        Training is not supported on models loaded form text files.
+
+        Do not duplicate any code from train_iterable.
+
         """
-
-        if self.tokenization == Tokenization.none:
-            raise TrainingErrorException("train_url only supported if the tokenization mode is not none.")
-        try:
-            infile = urllib.request.urlopen(url)
-
-            # data = (str(line, encoding= 'utf8') for line in infile.readlines())
-            data = str(infile.read(),encoding= 'utf8')
-            self.train_iterable(data)
-        except urllib.error.HTTPError:
-            logging.error("The web link is not correct")
-        except urllib.error.URLError:
-            logging.error("The internet may not be connected yet")
+        raise NotImplementedError 
 
     def train_iterable(self, data):
         """Compute the probabilities based on the data given.
-        Training is not supported on models loaded form text files.
+
+        If the tokenization mode is none, data must be an iterable. If
+        the tokenization mode is character or word, then data must be
+        a string. Finally, if the tokenization mode is byte, then data
+        must be a bytes. If the type is wrong raise TypeError.
+
+        Try to avoid storing all that data at one time, but if it is way
+        simpler to store it don't worry about it. For most input types
+        you will not need to store it.
         """
+        # HINT: You will find you need to convert the input iterable
+        # into a new iterable. One step is already implemented in the
+        # final_tests.py files. You may use that code (making sure to
+        # give credit where credit is due).
+        raise NotImplementedError
 
-        if not isinstance(data, types.GeneratorType):
-            if self.tokenization == Tokenization.character:
-                if type(data) != str:
-                    raise TypeError
-            elif self.tokenization == Tokenization.word:
-                if type(data) != str:
-                    raise TypeError
-                else:
-                    data = tuple(data.split())
-            elif self.tokenization == Tokenization.byte:
-                if type(data) != bytes:
-                    raise TypeError
-            else:
-                if not isinstance(data, collections.Iterable):
-                    raise TypeError
-        try:
-            tokens = {}
-            for i,j in self.windowed(data, self.level):
-                token = tuple(i)
-                if not token in tokens:
-                    tokens[token] = {}
-                follower = (j,)
-                if follower[0] != None:
-                    tokens[token][follower] = tokens[token][follower] + 1 if follower in tokens[token] else 1
-            if len(tokens) == 1:
-                raise Exception("The data is too short, should have provided more than {} elements".format(self.level))
-        except Exception:
-            raise TrainingErrorException("There is an error occurs while loading trainingdata", len(tokens))
+"""TODO: Make this file into a script that can be called using the
+following command-line arguments:
 
-        self.build_markov_chain(tokens)
+final.py [command] [options]
+  Commands:
+    --train       Train a model using the given input and save it to a pickle output file.
+    --input url_for_training_file     The input file to train on (Default standard input)
+    --output text_output_file         The output file to save the model to (Default standard output)
+    --word                            Use word tokenization (Default)
+    --character                       Use character tokenization
+    --byte                            Use byte tokenization
+    --level n                         Train for level n (Default 1)
+    --generate     Generate an output file
+    --input pickle_input_file           The input file to load the model from (Default standard input)
+    --output generated_file           The output file to write the random data to (Default standard output)
+    --amount n                        Generate n tokens of output (Required)
 
-    def windowed(self, iterable, size):
-        window = list()
-        for v in iterable:
-            if len(window) < size+1:
-                window.append(v)
-            else:
-                window.pop(0)
-                window.append(v)
-            if len(window) == size+1:
-                yield window[:-1], window[-1]
-        yield (window[1:], None)
+(None tokenization does not make sense from the command-line and
+shouldn't be supported from the command-line interface.)
 
-    def build_markov_chain(self, tokens):
-        autoCounter = 1
-        for token in tokens:
-            self.model.add_node(autoCounter, token)
-            autoCounter += 1
-        for token, followers in tokens.items():
-            if len(followers)>0:
-                weight = float(sum((count for follower, count in followers.items())))
-                for follower, count in followers.items():
-                    next_state_token = token[1:] + follower
+For example, I should be able to do the following on a Linux command line:
+python3 final.py --train --input http://www.google.com --output google.model --word
+python3 final.py --generate --input google.model --amount 100
+[100 words generated like the google HTML]
+python3 final.py --train --character --input file://input.file | python3 final.py --generate --amount 1024 --output output.file
 
-                    for item in self.model.chain.values():
-                        if item.state == next_state_token:
-                            next_state_token_ID = item.value
-                            break
-                    for item in self.model.chain.values():
-                        if item.state == token:
-                            current_token_ID = item.value
-                            break
+DO NOT implement the command-line parsing by hand! Look up the
+argparse and getopt and use one of them. Your choice.
 
-                    if next_state_token_ID in self.model.chain:
-                        next_state_node = self.model[next_state_token_ID]
-                        self.model[current_token_ID].add_next_state(next_state_node, count/weight)
+Make sure that an error message is printed if invalid options or
+commands are given.
 
-if __name__ == "__main__":
+Make sure this module can still be imported without executing like
+this.
 
-    parser = OptionParser()
+"""
 
-    parser.add_option("-t", "--train", action="store_true", dest="train",
-                      help = "Train a model using the given input and save it to a text format output file.")
-    parser.add_option("-g", "--generate", action="store_true", dest="generate",
-                      help = "Train a model using the given input and save it to a text format output file.")
+"""Modules you will want to look at:
+* enum
+* argparse
+* pickle
+* requests
+* http.client
+* urllib
 
-    parser.add_option("-i", "--input", dest = "input",
-                      help = "The input file to train on (Default standard input).")
-    parser.add_option("-o", "--output", dest = "output",
-                      help = "The output file to save the model to (Default standard output).")
-    # parser.add_option("-s", "--console", dest = "console", default=True,
-    #                   help = "print the output to console.")
-    parser.add_option("-l", "--level", dest = "level",
-                      help = "Train for level n (Default 1).")
-    parser.add_option("-a", "--amount", dest = "amount",
-                      help = "Generate n tokens of output (Required).")
+You may use the requests if you like even though it is not in the
+standard library. I will make sure it is installed on the testing
+machine.
 
-    parser.add_option("-w", "--word", action="store_true", dest="word",
-                      help = "Use word tokenization (Default)")
-    parser.add_option("-c", "--character", action="store_true", dest = "character",
-                      help = "Use character tokenization")
-    parser.add_option("-b", "--byte", action="store_true", dest = "byte",
-                      help = "Use byte tokenization")
-
-    options, args = parser.parse_args()
-
-    rw = RandomWriter(1, Tokenization.word)
-
-    if options.train is None and options.generate is None:
-        logging.error("Either source file or MarkovChain model file should be specified!")
-
-    elif options.train is not None and options.generate is not None:
-        logging.error("Source file and MarkovChain model file cannot be used at the same time!")
-
-    elif options.train is not None:  # dealing with train.
-
-        if options.input is None:
-            logging.error("No input source data specified")
-
-
-        else:
-            if options.level is not None:
-                rw.level = int(options.level)
-
-            if all((options.character is None, options.word is None, options.byte is None)) or (options.word is not None and all([ options.character is None, options.byte is None])):
-                rw.train_url(options.input)
-            elif(options.character is not None and all([ options.word is None, options.byte is None])):
-                rw.tokenization = Tokenization.character
-                rw.train_url(options.input)
-            elif(options.byte is not None and all([ options.word is None, options.character is None])):
-                rw.tokenization = Tokenization.byte
-                rw.train_url(options.input)
-            else:
-                logging.error("wrong tokenization specification")
-
-            if options.output is not None:
-                rw.save_text(options.output)
-            else:
-                rw.save_text(sys.stdout)
-
-    else:
-        if options.input is None:
-            logging.error("No input model specified")
-        elif options.amount is None:
-            logging.error("No number of tokens of output specified")
-
-        elif options.output is None:
-            rw = RandomWriter.load(options.input)
-            rw.generate_file(sys.stdout, options.amount)
-
-        else:
-            rw = RandomWriter.load(options.input)
-            rw.generate_file(options.output, options.amount)
-
-#################################################################################################################################
-#######Do not have time to figure this out since I have other projects due and need to work more than 30 hours a week ###########
-#python3 final.py --train --character --input file://input.file | python3 final.py --generate --amount 1024 --output output.file
-##################################Hope this won't take too much points off#######################################################
-######################This project is very educational but also a bit advanced to me to finish it in 4 days#####################
-
+"""
 

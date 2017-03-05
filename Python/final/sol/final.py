@@ -1,112 +1,30 @@
-import random
+from pprint import pprint
 from optparse import OptionParser
+import random
 import enum
 import re
 import urllib
+import urllib.request
 import pickle
 import logging
 import graph
 import collections
 import types
-import urllib.request
 import sys
-import string
-from pprint import pprint
-
-
-line_re = re.compile(r"(?P<node_id>\d+):\s*(?P<edges>.*)$")
-edge_re = re.compile(r"\((?P<token>\"[^\"]*\"|[\d.]+),\s*(?P<probability>[\d.]+),\s*(?P<target>[\d]+)\)")
-
-def parse_line1(line, cache_dict):
-    line_match = line_re.match(line)
-    node_id, edge_str = line_match.group("node_id", "edges")
-    node_id = int(node_id)
-    edges = edge_re.finditer(edge_str)
-    node = graph.MarkovChainNode(node_id)  # now state is None obj
-    if not node_id in cache_dict:
-        cache_dict[node_id] = None
-    for edge_match in edges:
-        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
-        target_str =  int(target_str)
-        if token_str[0] == '"':
-            token = token_str[1:-1]
-        else:
-            token = float(token_str) if "." in token_str else int(token_str)
-        if type(token) ==  str and token.isdigit():
-             token = float(token) if "." in token_str else int(token)
-        cache_dict[target_str] = token
-    return int(node_id), node
-
-
-def parse_line2(line, nodes):
-    line_match = line_re.match(line)
-    node_id, edge_str = line_match.group("node_id", "edges")
-    node_id = int(node_id)
-    edges = edge_re.finditer(edge_str)
-    for edge_match in edges:
-        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
-        target_str =  int(target_str)
-        if token_str[0] == '"':
-            token = token_str[1:-1]
-        else:
-            token = float(token_str) if "." in token_str else int(token_str)
-        if type(token) ==  str and token.isdigit():
-            token = float(token) if "." in token_str else int(token)
-
-        prob = float(prob_str)
-        followerNode = nodes[target_str]
-        nodes[node_id].set_next_state(followerNode,prob)
-
-
-def parse_lines(lines):
-    cache_dict = dict()
-    nodes = dict(parse_line1(line, cache_dict) for line in lines)
-    for key in cache_dict:
-        nodes[key].state = (cache_dict[key],)
-    for line in lines:
-        parse_line2(line, nodes)
-    return nodes
-
-
-class TrainingErrorException(Exception):
-    """Create an exception TrainingError that has an attribute tokens_loaded."""
-    def __init__(self, err, tokens_loaded=0):
-        self.err = err
-        self.tokenLoaded = tokens_loaded
-    def __str__(self):
-        return self.err + ". {} tokens were loaded".format(self.tokenLoaded)
-
-
-class Tokenization(enum.Enum):
-    """ tokenization modes
-    word: Interpret the input as UTF-8 and split the input at any Unicode
-    white-space characters and use the strings between the white-space
-    as tokens. So "a b" would be [a, b] as would "a\nb" and "a \u00A0\nb"
-    (\u00A0 is non-breaking space).
-
-    character: Interpret the input as UTF-8 and use the characters as tokens.
-
-    byte: Read the input as raw bytes and use individual bytes as the tokens.
-
-    none: Do not tokenize. The input must be an iterable.
-    """
-    word = 1
-    character = 2
-    byte = 3
-    none = 4
-
 
 class RandomWriter(object):
     """A Markov chain based random data generator."""
 
-    def __init__(self, level=1, tokenization=Tokenization.none):
+    def __init__(self, level=1, tokenization=None):
         """Initialize a random writer.
+
         Args:
           level: The context length or "level" of model to build.
           tokenization: A value from Tokenization. This specifies how
             the data should be tokenized.
+
         The value given for tokenization will affect what types of
-        data are supported.
+        data are supported. 
         """
         self.level = level
         self.tokenization = tokenization
@@ -141,8 +59,7 @@ class RandomWriter(object):
         """
         if type(amount == str):
             amount = int(amount)
-        ####----------------------------------##############
-        #######this is for sys.stdout file object
+
         if hasattr(filename, 'read'):
             fi = filename
             for ele in self.generate():
@@ -244,7 +161,6 @@ class RandomWriter(object):
         return rw
 
     def save_pickle(self, filename_or_file_object):
-        """Write this model out as a Python pickle."""
 
         if hasattr(filename_or_file_object, 'read'):
             fi = filename_or_file_object
@@ -370,34 +286,121 @@ class RandomWriter(object):
                         next_state_node = self.model[next_state_token_ID]
                         self.model[current_token_ID].set_next_state(next_state_node, count/weight)
 
+
+
+line_re = re.compile(r"(?P<node_id>\d+):\s*(?P<edges>.*)$")
+edge_re = re.compile(r"\((?P<token>\"[^\"]*\"|[\d.]+),\s*(?P<probability>[\d.]+),\s*(?P<target>[\d]+)\)")
+
+def parse_line1(line, cache_dict):
+    line_match = line_re.match(line)
+    node_id = line_match.group("node_id")
+    edge_str = line_match.group("edges")
+    node_id = int(node_id)
+    edges = edge_re.finditer(edge_str)
+    node = graph.MarkovChainNode(node_id)  # now state is None obj
+    if not node_id in cache_dict:
+        cache_dict[node_id] = None
+    for edge_match in edges:
+        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
+        target_str =  int(target_str)
+        if token_str[0] == '"':
+            token = token_str[1:-1]
+        else:
+            token = float(token_str) if "." in token_str else int(token_str)
+        if type(token) ==  str and token.isdigit():
+             token = float(token) if "." in token_str else int(token)
+        cache_dict[target_str] = token
+    return int(node_id), node
+
+
+def parse_line2(line, nodes):
+    line_match = line_re.match(line)
+    node_id, edge_str = line_match.group("node_id", "edges")
+    node_id = int(node_id)
+    edges = edge_re.finditer(edge_str)
+    for edge_match in edges:
+        token_str, prob_str, target_str = edge_match.group("token", "probability", "target")
+        target_str =  int(target_str)
+        if token_str[0] == '"':
+            token = token_str[1:-1]
+        else:
+            token = float(token_str) if "." in token_str else int(token_str)
+        if type(token) ==  str and token.isdigit():
+            token = float(token) if "." in token_str else int(token)
+
+        prob = float(prob_str)
+        followerNode = nodes[target_str]
+        nodes[node_id].set_next_state(followerNode,prob)
+
+
+def parse_lines(lines):
+    cache_dict = dict()
+    nodes = dict(parse_line1(line, cache_dict) for line in lines)
+    for key in cache_dict:
+        nodes[key].state = (cache_dict[key],)
+    for line in lines:
+        parse_line2(line, nodes)
+    return nodes
+
+
+class TrainingErrorException(Exception):
+    """Create an exception TrainingError that has an attribute tokens_loaded."""
+    def __init__(self, err, tokens_loaded=0):
+        self.err = err
+        self.tokenLoaded = tokens_loaded
+    def __str__(self):
+        return self.err + ". {} tokens were loaded".format(self.tokenLoaded)
+
+
+class Tokenization(enum.Enum):
+    """ tokenization modes
+    word: Interpret the input as UTF-8 and split the input at any Unicode
+    white-space characters and use the strings between the white-space
+    as tokens. So "a b" would be [a, b] as would "a\nb" and "a \u00A0\nb"
+    (\u00A0 is non-breaking space).
+
+    character: Interpret the input as UTF-8 and use the characters as tokens.
+
+    byte: Read the input as raw bytes and use individual bytes as the tokens.
+
+    none: Do not tokenize. The input must be an iterable.
+    """
+    word = 1
+    character = 2
+    byte = 3
+    none = 4
+
+
+
+
 if __name__ == "__main__":
 
     parser = OptionParser()
 
-    parser.add_option("-t", "--train", action="store_true", dest="train",
-                      help = "Train a model using the given input and save it to a text format output file.")
-    parser.add_option("-g", "--generate", action="store_true", dest="generate",
+    parser.add_option("--train", action="store_true", dest="train",
                       help = "Train a model using the given input and save it to a text format output file.")
 
-    parser.add_option("-i", "--input", dest = "input",
+    parser.add_option("--input", action="store_true", dest = "input",
                       help = "The input file to train on (Default standard input).")
-    parser.add_option("-o", "--output", dest = "output",
+    parser.add_option("--output", action="store_true", dest = "output",
                       help = "The output file to save the model to (Default standard output).")
-    # parser.add_option("-s", "--console", dest = "console", default=True,
-    #                   help = "print the output to console.")
-    parser.add_option("-l", "--level", dest = "level",
-                      help = "Train for level n (Default 1).")
-    parser.add_option("-a", "--amount", dest = "amount",
-                      help = "Generate n tokens of output (Required).")
 
-    parser.add_option("-w", "--word", action="store_true", dest="word",
+    parser.add_option("--word", action="store_true", dest="word",
                       help = "Use word tokenization (Default)")
-    parser.add_option("-c", "--character", action="store_true", dest = "character",
+    parser.add_option("--character", action="store_true", dest = "character",
                       help = "Use character tokenization")
-    parser.add_option("-b", "--byte", action="store_true", dest = "byte",
+    parser.add_option("--byte", action="store_true", dest = "byte",
                       help = "Use byte tokenization")
 
-    options, args = parser.parse_args()
+    parser.add_option("--generate", action="store_true", dest="generate",
+                      help = "Train a model using the given input and save it to a text format output file.")
+    parser.add_option("--level", action="store_true", dest = "level",
+                      help = "Train for level n (Default 1).")
+    parser.add_option("--amount", action="store_true", dest = "amount",
+                      help = "Generate n tokens of output (Required).")
+
+
+    (options, args) = parser.parse_args()
 
     rw = RandomWriter(1, Tokenization.word)
 
