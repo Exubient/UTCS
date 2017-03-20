@@ -75,6 +75,8 @@ Links:
 * https://docs.python.org/3.5/reference/expressions.html#yieldexpr
 
 """
+# hk23356
+# Hyun Joong Kim
 from binarysearchtree import Node
 
 class TreeDict(object):
@@ -144,14 +146,6 @@ class TreeDict(object):
         except ValueError:
             return default
 
-    def __delitem__(self, key):
-        if key is None:
-            raise KeyError("None cannot be used as a key")
-        try:
-            self.node.dnodete(key)
-        except AttributeError:
-            raise KeyError(key)
-
     def num_subtree_Nodes(self, root):
         if root is None:
             return 0
@@ -162,30 +156,28 @@ class TreeDict(object):
         if self.node.key is None:
             return 0
         else:
-            left_root = self.node.left
-            right_root = self.node.right
-            return self.num_subtree_Nodes(left_root) + self.num_subtree_Nodes(right_root) + 1
+            return self.num_subtree_Nodes(self.node.left) + self.num_subtree_Nodes(self.node.right) + 1
 
-    def inOrder(self, root):
+    def iterOrder(self, root):
         if root != None:
-            yield from self.inOrder(root.left)
+            yield from self.iterOrder(root.left)
             yield (root.key, root.value)
-            yield from self.inOrder(root.right)
+            yield from self.iterOrder(root.right)
 
     def __iter__(self):
         if self.node.key is None:
-            return iter(()) 
+            return iter(())
         else:
-            return (item[0] for item in self.inOrder(self.node))
+            return (item[0] for item in self.iterOrder(self.node))
 
     def items(self):
         if self.node.key is None:
-            return iter({}) 
+            return iter({})
         else:
-            return (item for item in self.inOrder(self.node))
+            return (item for item in self.iterOrder(self.node))
 
     def values(self):
         if self.node.key == None:
             return iter(())
         else:
-            return (item[1] for item in self.inOrder(self.node))
+            return (item[1] for item in self.iterOrder(self.node))

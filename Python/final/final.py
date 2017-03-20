@@ -162,11 +162,33 @@ want to use the complete works of Shakespeare:
 http://www.gutenberg.org/cache/epub/100/pg100.txt
 
 """
+
+from pprint import pprint
+from enum import Enum
+import types
+import sys
+import argparse
+import random
+import urllib
+import urllib.request
+import pickle
+import logging
+import graph
+import collections
+
+
+class Tokenization(Enum):
+    word = 1
+    character = 2
+    byte = 3
+    none = 4
+
+
 class RandomWriter(object):
     """A Markov chain based random data generator.
     """
 
-    def __init__(self, level, tokenization=None):
+    def __init__(self, level=1, tokenization=None):
         """Initialize a random writer.
 
         Args:
@@ -178,11 +200,13 @@ class RandomWriter(object):
         data are supported.
 
         """
-        raise NotImplementedError
+        self.model = graph.MarkovChainGraph()
+        self.level = level
+        self.token = tokenization
 
     def generate(self):
         """Generate tokens using the model.
-        
+
         Yield random tokens using the model. The generator should
         continue generating output indefinitely.
 
@@ -191,7 +215,26 @@ class RandomWriter(object):
         new starting node at random and continuing.
 
         """
-        raise NotImplementedError
+        node = self.generate_random()
+
+        while True:
+            yield node.state[-1]
+            if len(node.next_states) != 0:
+                node = node.get_next_state()
+                if node == None:
+                    node = self.generate_random()
+                    while len(node.next_states) == 0:
+                        node = self.generate_random()
+            else:
+                node = self.generate_random()
+                while len(node.next_states) == 0:
+                    node = self.generate_random()
+
+    def generate_random(self):
+        ls = []
+        for key in self.model.state_dict.keys():
+            ls.append(key)
+        return self.model.state_dict[random.choice(ls)]
 
     def generate_file(self, filename, amount):
         """Write a file using the model.
@@ -209,7 +252,20 @@ class RandomWriter(object):
 
         Make sure to open the file in the appropriate mode.
         """
-        raise NotImplementedError
+        with open(filename, "w", encoding="utf-8") as fi:
+            count = 0
+
+            if self.token is Tokenization.byte or self.token is Tokenization.character:
+                space = ""
+            else:
+                space = " "
+            for generate_token in self.generate():
+                count += 1
+                outputStr = str(generate_token)
+                outputStr += space
+                fi.write(outputStr)
+                if count >= amount:
+                    break
 
     def save_pickle(self, filename_or_file_object):
         """Write this model out as a Python pickle.
@@ -222,7 +278,12 @@ class RandomWriter(object):
         in binary mode.
 
         """
-        raise NotImplementedError
+        if hasattr(filename_or_file_object, 'read'):
+            fi = filename_or_file_object
+        else:
+            fi = open(filename_or_file_object, 'wb')
+        pickle.dump(self.model.state_dict, fi)
+        fi.close()
 
     @classmethod
     def load_pickle(cls, filename_or_file_object):
@@ -239,7 +300,14 @@ class RandomWriter(object):
         in binary mode.
 
         """
-        raise NotImplementedError
+        if hasattr(filename_or_file_object, 'read'):
+            fi = filename_or_file_object
+        else:
+            fi = open(filename_or_file_object, 'r+b')
+        rw_instance = RandomWriter()
+        rw_instance.model.state_dict = pickle.load(fi)
+        fi.close()
+        return rw_instance
 
     def train_url(self, url):
         """Compute the probabilities based on the data downloaded from url.
@@ -254,7 +322,13 @@ class RandomWriter(object):
         Do not duplicate any code from train_iterable.
 
         """
-        raise NotImplementedError 
+        if self.token != Tokenization.none:
+            data = urllib.request.urlopen(url)
+            if self.token == Tokenization.byte:
+                data_input = data.read()
+            else:
+                data_input = data.read().decode("utf-8")
+            self.train_iterable(data_input)
 
     def train_iterable(self, data):
         """Compute the probabilities based on the data given.
@@ -272,7 +346,21 @@ class RandomWriter(object):
         # into a new iterable. One step is already implemented in the
         # final_tests.py files. You may use that code (making sure to
         # give credit where credit is due).
-        raise NotImplementedError
+        if not isinstance(data, types.GeneratorType):
+            if self.token == Tokenization.character:
+                if type(data) != str:
+                    raise TypeError
+            elif self.token == Tokenization.word:
+                if type(data) != str:
+                    raise TypeError
+                else:
+                    data = tuple(data.split())
+                elif self.token == Tokenization.byte:
+                    if type(data) != bytes:
+                        raise TypeError
+                else:
+                    if not isinstance(data, collections.Iterable):
+                        raise TypeError
 
 """TODO: Make this file into a script that can be called using the
 following command-line arguments:
@@ -325,3 +413,40 @@ machine.
 
 """
 
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train", action="store_true")
+    parser.add_argument("--input", action="store_true", default=sys.stdin)
+    parser.add_argument("--output", action="store_true", default=sys.stdout)
+    parser.add_argument("--word", action="store_true")
+    parser.add_argument("--character", action="store_true")
+    parser.add_argument("--byte", action="store_true")
+    parser.add_argument("--level", default=1, action="store_true")
+    parser.add_argument("--generate", action="store_true")
+    parser.add_argument("--amount", action="store_true")
+    args = vars(parser.parse_args())
+
+    for x, y in args.items():
+        print(x, y)
+
+    rw = RandomWriter(1, Tokenization.word)
+
+    if args['train']:
+        if parser['input']:
+            if parser['character']:
+                token = parser.character
+            elif parser['byte']:
+                token = parser.byte
+            else:
+                token = parser.word
+            if not parser['level']:
+                raise parser.error("Need a level")
+            parser.train_url(parser.input)
+        if parser['output']:
+            parser.save_pickle(parser.output)
+    # if parser['generate']:
+    #     if not parser['amount']:
+    #         raise parser.error("Need an amount")
+    #     if parser['input']:
+    #         print("I Tried my best :/")
