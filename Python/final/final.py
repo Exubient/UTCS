@@ -165,9 +165,6 @@ http://www.gutenberg.org/cache/epub/100/pg100.txt
 
 from pprint import pprint
 from enum import Enum
-import types
-import sys
-import argparse
 import random
 import urllib
 import urllib.request
@@ -175,6 +172,9 @@ import pickle
 import logging
 import graph
 import collections
+import types
+import sys
+import argparse
 
 
 class Tokenization(Enum):
@@ -254,11 +254,7 @@ class RandomWriter(object):
         """
         with open(filename, "w", encoding="utf-8") as fi:
             count = 0
-
-            if self.token is Tokenization.byte or self.token is Tokenization.character:
-                space = ""
-            else:
-                space = " "
+            space = "" if self.token is Tokenization.byte or self.token is Tokenization.character else " "
             for generate_token in self.generate():
                 count += 1
                 outputStr = str(generate_token)
@@ -281,7 +277,7 @@ class RandomWriter(object):
         if hasattr(filename_or_file_object, 'read'):
             fi = filename_or_file_object
         else:
-            fi = open(filename_or_file_object, 'wb')
+            fi = open(filename_or_file_object, 'w+b')
         pickle.dump(self.model.state_dict, fi)
         fi.close()
 
@@ -347,20 +343,45 @@ class RandomWriter(object):
         # final_tests.py files. You may use that code (making sure to
         # give credit where credit is due).
         if not isinstance(data, types.GeneratorType):
-            if self.token == Tokenization.character:
+            if self.token == Tokenization.word:
                 if type(data) != str:
                     raise TypeError
-            elif self.token == Tokenization.word:
+            elif self.token == Tokenization.character:
                 if type(data) != str:
                     raise TypeError
                 else:
                     data = tuple(data.split())
-                elif self.token == Tokenization.byte:
-                    if type(data) != bytes:
-                        raise TypeError
-                else:
-                    if not isinstance(data, collections.Iterable):
-                        raise TypeError
+            elif self.token == Tokenization.byte:
+                if type(data) != bytes:
+                    raise TypeError
+            else:
+                if not isinstance(data, collections.Iterable):
+                    raise TypeError
+
+        tokens = {}
+        for i,j in self.windowed(data, self.level):
+            if not tuple(i) in tokens:
+                tokens[tuple(i)] = {}
+            value = (j,)
+            if value[0] != None:
+                tokens[token][value] = tokens[token][value] + 1 if value in tokens[token] else 1
+        if len(tokens) == 1:
+            raise Exception("data length error")
+            # I'm not sure how to do the rest
+
+
+    # code from the final_text.py 
+    def windowed(self, iterable, size):
+        window = list()
+        for v in iterable:
+            if len(window) < size+1:
+                window.append(v)
+            else:
+                window.pop(0)
+                window.append(v)
+            if len(window) == size+1:
+                yield window[:-1], window[-1]
+        yield (window[1:], None)
 
 """TODO: Make this file into a script that can be called using the
 following command-line arguments:
@@ -427,9 +448,6 @@ if __name__ == "__main__":
     parser.add_argument("--amount", action="store_true")
     args = vars(parser.parse_args())
 
-    for x, y in args.items():
-        print(x, y)
-
     rw = RandomWriter(1, Tokenization.word)
 
     if args['train']:
@@ -445,8 +463,4 @@ if __name__ == "__main__":
             parser.train_url(parser.input)
         if parser['output']:
             parser.save_pickle(parser.output)
-    # if parser['generate']:
-    #     if not parser['amount']:
-    #         raise parser.error("Need an amount")
-    #     if parser['input']:
-    #         print("I Tried my best :/")
+

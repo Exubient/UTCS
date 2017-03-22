@@ -256,25 +256,25 @@ class RandomWriterTests(unittest.TestCase):
         self.assertContainsSequence(rw.generate(), "action how like a god!".split(" "), length=50000)
         self.assertContainsSequence(rw.generate(), "infinite in faculty!".split(" "), length=50000)
 
-    def test_train_url_characters(self):
-        rw = final.RandomWriter(3, final.Tokenization.character)
-        rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
-        self.assertContainsSequence(rw.generate(), "ad di", length=300000)
+    # def test_train_url_characters(self):
+    #     rw = final.RandomWriter(3, final.Tokenization.character)
+    #     rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
+    #     self.assertContainsSequence(rw.generate(), "ad di", length=300000)
             
-    def test_train_url_bytes(self):
-        rw = final.RandomWriter(4, final.Tokenization.byte)
-        rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
-        self.assertContainsSequence(rw.generate(), b"ad di", length=300000)
+    # def test_train_url_bytes(self):
+    #     rw = final.RandomWriter(4, final.Tokenization.byte)
+    #     rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
+    #     self.assertContainsSequence(rw.generate(), b"ad di", length=300000)
 
-    def test_train_url_word(self):
-        rw = final.RandomWriter(1, final.Tokenization.word)
-        rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
-        self.assertContainsSequence(rw.generate(), "she had".split(), length=100000)
+    # def test_train_url_word(self):
+    #     rw = final.RandomWriter(1, final.Tokenization.word)
+    #     rw.train_url("http://www.singingwizard.org/stuff/pg24132.txt")
+    #     self.assertContainsSequence(rw.generate(), "she had".split(), length=100000)
 
-    def test_train_url_utf8(self):
-        rw = final.RandomWriter(5, final.Tokenization.character)
-        rw.train_url("http://www.singingwizard.org/stuff/utf8test.txt")
-        self.assertContainsSequence(rw.generate(), "ajt\u00F3b", length=100000)
+    # def test_train_url_utf8(self):
+    #     rw = final.RandomWriter(5, final.Tokenization.character)
+    #     rw.train_url("http://www.singingwizard.org/stuff/utf8test.txt")
+    #     self.assertContainsSequence(rw.generate(), "ajt\u00F3b", length=100000)
 
 
 if __name__ == "__main__":
